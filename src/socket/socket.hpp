@@ -3,6 +3,16 @@
 
 #include <string>
 
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    using socket_type = SOCKET;
+#else
+    #define INVALID_SOCKET -1
+    #define SOCKET_ERROR -1
+    using socket_type = int;
+#endif
+
 namespace Socket
 {
     ////////////////////////
@@ -11,7 +21,7 @@ namespace Socket
 
     void handle_request
     (
-        const int &client
+        const socket_type &client
     );
 
     //////////////////////////////
@@ -21,8 +31,9 @@ namespace Socket
     bool create_socket_server
     (
         const std::string &address,
+        const int &max_retries,
         const int &port,
-        int &server_socket
+        socket_type &server_socket
     );
 }
 

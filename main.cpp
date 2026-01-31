@@ -1,12 +1,18 @@
 #include "src/app.hpp"
 
 #include <iostream>
-#include <netinet/in.h>
 #include <map>
 #include <stdexcept>
 #include <string>
-#include <sys/socket.h>
 #include <thread>
+
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+#endif
 
 /*
     Main function of the program.
@@ -32,15 +38,22 @@ int main()
 
     const std::string address = config["ADDRESS"];
     std::string port = config["PORT"];
+    std::string max_retries = config["MAX_RETRIES"];
 
     if (!Utils::Text::is_an_integer(port))
     {
-        std::cerr << "The retrieved port from the config file is not valid!";
+        std::cerr << "Warning: The retrieved port from the config file is not valid! Defaulted to 8080.\n";
         port = "8080";
     }
 
-    int server_socket;
-    const bool socket_creation = App::Socket::create_socket_server(address, std::stoi(port), server_socket);
+    if (!Utils::Text::is_an_integer(max_retries))
+    {
+        std::cerr << "Warning: The retrieved max retries value from the config file is not valid! Defaulted to 5.\n";
+        max_retries = "5";
+    }
+
+    socket_type server_socket;
+    const bool socket_creation = App::Socket::create_socket_server(address, std::stoi(max_retries), std::stoi(port), server_socket);
 
     if (!socket_creation)
     {
@@ -51,12 +64,11 @@ int main()
     while (true)
     {
         struct sockaddr_in client_address;
+
         socklen_t request_size = sizeof(client_address);
+        socket_type client = accept(server_socket, (struct sockaddr*) &client_address, &request_size);
 
-        int client = accept(server_socket, (struct sockaddr*) &client_address, &request_size);
-        const bool client_acceptation = client >= 0;
-
-        if (!client_acceptation)
+        if (client == INVALID_SOCKET)
         {
             std::cerr << "Warning: Failed to accept the client!\n";
             continue;
