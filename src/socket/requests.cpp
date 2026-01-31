@@ -47,9 +47,13 @@ void Socket::handle_request
 
     if (bytes_read <= 0)
     {
+        const std::string response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+
         #ifdef _WIN32
+            send(client, response.c_str(), response.size(), 0);
             closesocket(client);
         #else
+            write(client, response.c_str(), response.size());
             close(client);
         #endif
 
