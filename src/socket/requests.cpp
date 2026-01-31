@@ -7,6 +7,15 @@
 #include <sstream>
 #include <unistd.h>
 
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+#endif
+
 /*
     Handle an HTTP request.
 
@@ -18,22 +27,37 @@
         5) Log it, and reply a simple hello world.
 
     Parameters:
-        - client / int / Request data provided by the client.
+        - client / int or SOCKET / Request data provided by the client.
 
     Returns:
         No object returned.
 */
 void Socket::handle_request
 (
-    const int &client
+    const socket_type &client
 )
 {
     char buffer[2048];
-    const int bytes_read = read(client, buffer, sizeof(buffer) - 1);
+
+    #ifdef _WIN32
+        const int bytes_read = recv(client, buffer, sizeof(buffer) - 1, 0);
+    #else
+        const int bytes_read = read(client, buffer, sizeof(buffer) - 1);
+    #endif
 
     if (bytes_read <= 0)
     {
-        close(client);
+        const std::string response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+
+        #ifdef _WIN32
+            send(client, response.c_str(), response.size(), 0);
+            closesocket(client);
+        #else
+            write(client, response.c_str(), response.size());
+            close(client);
+        #endif
+
+        std::cerr << "Warning: Ignored empty request!\n";
         return;
     }
 
@@ -42,9 +66,17 @@ void Socket::handle_request
 
     if (first_line_end == std::string::npos)
     {
-        std::string response = "HTTP/1.1 400 Bad Request\r\n\r\n";
-        write(client, response.c_str(), response.size());
-        close(client);
+        const std::string response = "HTTP/1.1 400 Bad Request\r\n\r\n";
+
+        #ifdef _WIN32
+            send(client, response.c_str(), response.size(), 0);
+            closesocket(client);
+        #else
+            write(client, response.c_str(), response.size());
+            close(client);
+        #endif
+
+        std::cerr << "Warning: Ignored bad request!\n";
         return;
     }
 
@@ -57,6 +89,11 @@ void Socket::handle_request
     std::cout << "New request detected: " << method << " " << path << " " << version << "\n";
     const std::string response = Routes::make_server_response(path);
 
-    write(client, response.data(), response.size());
-    close(client);
+    #ifdef _WIN32
+        send(client, response.data(), response.size(), 0);
+        closesocket(client);
+    #else
+        write(client, response.data(), response.size());
+        close(client);
+    #endif
 }
