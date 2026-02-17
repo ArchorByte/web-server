@@ -70,7 +70,7 @@ bool Socket::create_socket_server
         return false;
     }
 
-    const bool listening = listen(server_socket, 5);
+    const bool listening = listen(server_socket, max_retries);
 
     if (listening == SOCKET_ERROR)
     {
@@ -78,6 +78,6 @@ bool Socket::create_socket_server
         return false;
     }
 
-    std::cout << "Socket server up and listening at http://" << address << ":" << port << ".\n";
+    std::cout << "Socket server up and listening at http://" << address << ":" << port << ".\nNote: [Ctrl+C] to shutdown.\n";
     return true;
 }
