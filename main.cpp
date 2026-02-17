@@ -1,8 +1,9 @@
 #include "src/app.hpp"
 
+#include <csignal>
+#include <cstdio>
 #include <iostream>
 #include <map>
-#include <stdexcept>
 #include <string>
 #include <thread>
 
@@ -52,14 +53,21 @@ int main()
         max_retries = "5";
     }
 
-    socket_type server_socket;
+    static socket_type server_socket;
     const bool socket_creation = App::Socket::create_socket_server(address, std::stoi(max_retries), std::stoi(port), server_socket);
 
     if (!socket_creation)
     {
         std::cerr << "Failed to create the socket server!\n";
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
+
+    std::signal(SIGINT, [](int)
+    {
+        shutdown(server_socket, SHUT_RD);
+        std::cout << "\nWeb server stopped successfully!\n";
+        exit(EXIT_SUCCESS);
+    });
 
     while (true)
     {
@@ -78,6 +86,5 @@ int main()
         client_thread.detach();
     }
 
-    std::cout << "Web server stopped successfully!\n";
     return 0;
 }
